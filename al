@@ -20,7 +20,7 @@ path_apk_empeded="$HOME/oprek/smali"
 path_apk_backup="$HOME/Dokumen/android"
 lib_apk_backup="$allib/build-tools"
 default_apk_build="$allib/build-tools/main"
-
+ndk="/home/shun/Android/android-ndk-r10e"
 
 #Distros vars
 known_compatible_distros=(
@@ -142,6 +142,7 @@ function apk_vclass() {
 	java -jar $vclass/lib1.jar "$vcapk" > $vcapk".java"
 	cat $vcapk".java"
 }
+
 function apk_build()
 {
 	read -p "[+]  compile/baru? c/b: " bapk
@@ -159,8 +160,11 @@ function apk_build()
 			mkdir -p src/$pbapk; mkdir assets
 			mkdir obj; mkdir bin; mkdir -p res/layout
 			mkdir res/values; mkdir res/drawable
-			if [ "$libapk" = "y" ]; then
-				mkdir libs
+
+                        read -p "[+]  Build C ndk code? y/n: " bndk
+			if [ "$bndk" = "y" ]; then
+				mkdir lib
+                                cp -r $default_apk_build/jni `pwd`
 			fi
 			cat $default_apk_build/AndroidManifest.xml > AndroidManifest.xml
 			cat $default_apk_build/MainActivity.java > src/$pbapk/MainActivity.java
@@ -230,6 +234,22 @@ function apk_build()
 				fi
 			done
 
+            cclagi="y"
+            while [ $cclagi = "y" ]; do
+                if [ -d jni ]; then
+                    read -p "[+]  jni compile y/n: " jnicompile
+                else
+                    cclagi="n"
+                fi
+                if [ "$jnicompile" = "y" ]; then
+                    $ndk/ndk-build
+                    mv libs/* lib
+                    rm -r libs
+                else
+                    cclagi="n"
+                fi
+            done
+
 			cd $LIBPROJ
 			echo
 			echo_blue "[+]  Dexing -->> ";./dx --dex --output=$PROJ/bin/classes.dex $PROJ/obj >/dev/null
@@ -237,6 +257,10 @@ function apk_build()
 			cp $PROJ/bin/classes.dex .
 			./aapt add $PROJ/bin/out.apk classes.dex  >/dev/null
 			./aapt list $PROJ/bin/out.apk  >/dev/null
+
+			if [ -d $PROJ/jni ]; then
+				echo "[+]  Sample add lib: aapt add bin/out.apk lib/armeabi/lib.so lalu sign ulang"
+			fi
 			echo_green  "[+]  Signing apk -->>"; jarsigner -verbose -keystore $allib/sign/shun.keystore -storepass "#pesawat" -keypass "#pesawat" -digestalg SHA1 -sigalg MD5withRSA $PROJ/bin/out.apk mykey  >/dev/null
 			
 			echo ""
@@ -310,8 +334,8 @@ function apk_backup()
 
 		read -p "[+]  backup atau kembalikan cache:  b/k : " rest
 		if [ "$rest" = "b" ]; then
-			./adb backup -f $paket".ab" $paket
-			mv "$lib_apk_backup/$paket".ab $destination
+			./adb backup -f /tmp/$paket".ab" $paket
+			mv "/tmp/$paket".ab $destination
 			echo -e "\nCache APK tersimpan $destination"
 		fi
 		if [ "$rest" = "k" ]; then
@@ -525,6 +549,12 @@ function install_data() {
 	fi
 }
 
+function wifi() {
+
+	nmcli connection add type wifi ifname '*' con-name alice autoconnect no ssid "Server alice"
+    nmcli connection modify alice 802-11-wireless.mode ap 802-11-wireless.band bg ipv4.method shared
+    nmcli connection up alice
+}
 function wifi_hack()
 {
 	iwconfig
@@ -723,6 +753,8 @@ elif [ "$com" = "cerah" ]; then
 elif [ "$com" = "edit" ]; then
 	cd $allib/sublime
 	./sublime_text 2>/dev/null &
+elif [ "$com" = "wifi" ]; then
+	wifi
 elif [ "$com" = "wifi_hack" ]; then
 	wifi_hack
 elif [ "$com" = "install" ]; then
@@ -733,6 +765,7 @@ else
 	echo
 	echo_yellow "apkkey: manajer aplikasi android"
 	echo_yellow "git: manajer git"
+	echo_yellow "wifi: membuat wifi hotspot"
 	echo_yellow "cerah: mengatur Kecerahan layar"
 	echo_yellow "edit: membuka text editor"
 	echo_yellow "wifi_hack: mengetes wifi"
